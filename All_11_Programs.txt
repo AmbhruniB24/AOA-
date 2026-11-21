@@ -1,0 +1,896 @@
+
+==============================================================================
+RecursionTree.java
+==============================================================================
+
+import java.util.Scanner;
+
+public class RecursionTree {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter a (number of subproblems): ");
+        int a = sc.nextInt();
+        System.out.print("Enter b (factor by which n is divided): ");
+        int b = sc.nextInt();
+        System.out.print("Enter n: ");
+        int n = sc.nextInt();
+        System.out.print("Enter c for f(n) = c * n^k: ");
+        double c = sc.nextDouble();
+        System.out.print("Enter k: ");
+        double k = sc.nextDouble();
+
+        if (a < 1 || b < 2 || n < 1 || c < 0 || k < 0) {
+            System.out.println("Invalid input.");
+            return;
+        }
+
+        int levels = 0;
+        int temp = n;
+        while (temp > 1) {
+            if (temp % b != 0) {
+                System.out.println("For this program, n must be an exact power of b.");
+                return;
+            }
+            temp /= b;
+            levels++;
+        }
+
+        double total = 0;
+        double nodes = 1;
+        int size = n;
+
+        System.out.println("\nLevel\tSubproblems\tSubproblem Size\tLevel Cost");
+        for (int level = 0; level < levels; level++) {
+            double cost = nodes * c * Math.pow(size, k);
+            System.out.printf("%d\t%.0f\t\t%d\t\t%.4f%n", level, nodes, size, cost);
+            total += cost;
+            nodes *= a;
+            size /= b;
+        }
+
+        double leafCost = nodes;
+        System.out.printf("%d\t%.0f\t\t1\t\t%.4f (leaf cost)%n", levels, nodes, leafCost);
+        total += leafCost;
+
+        System.out.printf("%nTotal estimated cost = %.4f%n", total);
+        double p = Math.log(a) / Math.log(b);
+        System.out.printf("log_b(a) = %.4f%n", p);
+
+        if (Math.abs(p - k) < 0.000001) {
+            System.out.println("For f(n) = c*n^k, the asymptotic result is Theta(n^k log n).");
+        } else if (p > k) {
+            System.out.println("The leaf levels dominate: Theta(n^log_b(a)).");
+        } else {
+            System.out.println("The upper levels dominate: Theta(n^k), for this polynomial f(n).");
+        }
+        sc.close();
+    }
+}
+
+==============================================================================
+MasterMethod.java
+==============================================================================
+
+import java.util.Scanner;
+
+public class MasterMethod {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter a: ");
+        double a = sc.nextDouble();
+        System.out.print("Enter b: ");
+        double b = sc.nextDouble();
+        System.out.print("Enter k for f(n) = n^k: ");
+        double k = sc.nextDouble();
+
+        if (a < 1 || b <= 1 || k < 0) {
+            System.out.println("Invalid input.");
+            return;
+        }
+
+        double logBA = Math.log(a) / Math.log(b);
+        double epsilon = 0.000001;
+
+        System.out.printf("log_b(a) = %.4f%n", logBA);
+
+        if (Math.abs(logBA - k) < epsilon) {
+            System.out.println("Case 2: T(n) = Theta(n^k log n).");
+        } else if (logBA > k) {
+            System.out.println("Case 1: T(n) = Theta(n^log_b(a)).");
+        } else {
+            double ratio = a / Math.pow(b, k);
+            if (ratio < 1) {
+                System.out.println("Case 3: T(n) = Theta(n^k), assuming the regularity condition holds.");
+            } else {
+                System.out.println("The standard Master Theorem Case 3 condition is not satisfied.");
+            }
+        }
+        sc.close();
+    }
+}
+
+==============================================================================
+BTreeProgram.java
+==============================================================================
+
+import java.util.Scanner;
+
+class BTreeNode {
+    int[] keys;
+    BTreeNode[] child;
+    int count;
+    boolean leaf;
+
+    BTreeNode(int t, boolean leaf) {
+        keys = new int[2 * t - 1];
+        child = new BTreeNode[2 * t];
+        count = 0;
+        this.leaf = leaf;
+    }
+}
+
+class BTree {
+    private BTreeNode root;
+    private int t;
+
+    BTree(int degree) {
+        t = degree;
+        root = new BTreeNode(t, true);
+    }
+
+    void insert(int key) {
+        if (search(key)) {
+            System.out.println("Duplicate key ignored.");
+            return;
+        }
+
+        BTreeNode r = root;
+        if (r.count == 2 * t - 1) {
+            BTreeNode s = new BTreeNode(t, false);
+            s.child[0] = r;
+            splitChild(s, 0);
+            root = s;
+            insertNonFull(s, key);
+        } else {
+            insertNonFull(r, key);
+        }
+    }
+
+    private void insertNonFull(BTreeNode node, int key) {
+        int i = node.count - 1;
+
+        if (node.leaf) {
+            while (i >= 0 && key < node.keys[i]) {
+                node.keys[i + 1] = node.keys[i];
+                i--;
+            }
+            node.keys[i + 1] = key;
+            node.count++;
+        } else {
+            while (i >= 0 && key < node.keys[i]) {
+                i--;
+            }
+            i++;
+            if (node.child[i].count == 2 * t - 1) {
+                splitChild(node, i);
+                if (key > node.keys[i]) {
+                    i++;
+                }
+            }
+            insertNonFull(node.child[i], key);
+        }
+    }
+
+    private void splitChild(BTreeNode parent, int index) {
+        BTreeNode full = parent.child[index];
+        BTreeNode right = new BTreeNode(t, full.leaf);
+        right.count = t - 1;
+
+        for (int j = 0; j < t - 1; j++) {
+            right.keys[j] = full.keys[j + t];
+        }
+
+        if (!full.leaf) {
+            for (int j = 0; j < t; j++) {
+                right.child[j] = full.child[j + t];
+            }
+        }
+
+        full.count = t - 1;
+
+        for (int j = parent.count; j >= index + 1; j--) {
+            parent.child[j + 1] = parent.child[j];
+        }
+        parent.child[index + 1] = right;
+
+        for (int j = parent.count - 1; j >= index; j--) {
+            parent.keys[j + 1] = parent.keys[j];
+        }
+        parent.keys[index] = full.keys[t - 1];
+        parent.count++;
+    }
+
+    boolean search(int key) {
+        return searchNode(root, key);
+    }
+
+    private boolean searchNode(BTreeNode node, int key) {
+        int i = 0;
+        while (i < node.count && key > node.keys[i]) {
+            i++;
+        }
+        if (i < node.count && key == node.keys[i]) {
+            return true;
+        }
+        if (node.leaf) {
+            return false;
+        }
+        return searchNode(node.child[i], key);
+    }
+
+    void display() {
+        displayNode(root, 0);
+    }
+
+    private void displayNode(BTreeNode node, int level) {
+        System.out.print("Level " + level + ": ");
+        for (int i = 0; i < node.count; i++) {
+            System.out.print(node.keys[i] + " ");
+        }
+        System.out.println();
+
+        if (!node.leaf) {
+            for (int i = 0; i <= node.count; i++) {
+                displayNode(node.child[i], level + 1);
+            }
+        }
+    }
+}
+
+public class BTreeProgram {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Enter minimum degree (at least 2): ");
+        int t = sc.nextInt();
+
+        if (t < 2) {
+            System.out.println("Minimum degree must be at least 2.");
+            return;
+        }
+
+        BTree tree = new BTree(t);
+        int choice;
+
+        do {
+            System.out.println("\n1. Insert\n2. Search\n3. Display\n0. Exit");
+            System.out.print("Enter choice: ");
+            choice = sc.nextInt();
+
+            if (choice == 1) {
+                System.out.print("Enter key: ");
+                tree.insert(sc.nextInt());
+            } else if (choice == 2) {
+                System.out.print("Enter key to search: ");
+                System.out.println(tree.search(sc.nextInt()) ? "Key found." : "Key not found.");
+            } else if (choice == 3) {
+                tree.display();
+            }
+        } while (choice != 0);
+
+        sc.close();
+    }
+}
+
+==============================================================================
+BPlusTreeProgram.java
+==============================================================================
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Scanner;
+
+class BPlusNode {
+    boolean leaf;
+    List<Integer> keys = new ArrayList<>();
+    List<BPlusNode> children = new ArrayList<>();
+    BPlusNode next;
+
+    BPlusNode(boolean leaf) {
+        this.leaf = leaf;
+    }
+}
+
+class BPlusTree {
+    private BPlusNode root = new BPlusNode(true);
+    private int order;
+
+    BPlusTree(int order) {
+        this.order = order;
+    }
+
+    void insert(int key) {
+        if (search(key)) {
+            System.out.println("Duplicate key ignored.");
+            return;
+        }
+
+        BPlusNode leaf = findLeaf(key);
+        leaf.keys.add(key);
+        Collections.sort(leaf.keys);
+
+        if (leaf.keys.size() == order) {
+            splitLeaf(leaf);
+        }
+    }
+
+    private BPlusNode findLeaf(int key) {
+        BPlusNode node = root;
+        while (!node.leaf) {
+            int i = 0;
+            while (i < node.keys.size() && key >= node.keys.get(i)) {
+                i++;
+            }
+            node = node.children.get(i);
+        }
+        return node;
+    }
+
+    private void splitLeaf(BPlusNode leaf) {
+        BPlusNode right = new BPlusNode(true);
+        int split = (leaf.keys.size() + 1) / 2;
+
+        right.keys.addAll(leaf.keys.subList(split, leaf.keys.size()));
+        leaf.keys.subList(split, leaf.keys.size()).clear();
+
+        right.next = leaf.next;
+        leaf.next = right;
+
+        int separator = right.keys.get(0);
+
+        if (leaf == root) {
+            BPlusNode newRoot = new BPlusNode(false);
+            newRoot.keys.add(separator);
+            newRoot.children.add(leaf);
+            newRoot.children.add(right);
+            root = newRoot;
+        } else {
+            insertIntoParent(root, leaf, separator, right);
+        }
+    }
+
+    private boolean insertIntoParent(BPlusNode current, BPlusNode left, int key, BPlusNode right) {
+        if (current.leaf) {
+            return false;
+        }
+
+        int childIndex = current.children.indexOf(left);
+        if (childIndex >= 0) {
+            current.keys.add(childIndex, key);
+            current.children.add(childIndex + 1, right);
+
+            if (current.children.size() > order) {
+                splitInternal(current);
+            }
+            return true;
+        }
+
+        for (BPlusNode child : current.children) {
+            if (!child.leaf && insertIntoParent(child, left, key, right)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void splitInternal(BPlusNode node) {
+        int middle = node.keys.size() / 2;
+        int promoted = node.keys.get(middle);
+
+        BPlusNode right = new BPlusNode(false);
+        right.keys.addAll(node.keys.subList(middle + 1, node.keys.size()));
+        right.children.addAll(node.children.subList(middle + 1, node.children.size()));
+
+        node.keys.subList(middle, node.keys.size()).clear();
+        node.children.subList(middle + 1, node.children.size()).clear();
+
+        if (node == root) {
+            BPlusNode newRoot = new BPlusNode(false);
+            newRoot.keys.add(promoted);
+            newRoot.children.add(node);
+            newRoot.children.add(right);
+            root = newRoot;
+        } else {
+            insertIntoParent(root, node, promoted, right);
+        }
+    }
+
+    boolean search(int key) {
+        BPlusNode leaf = findLeaf(key);
+        return leaf.keys.contains(key);
+    }
+
+    void display() {
+        BPlusNode node = root;
+        while (!node.leaf) {
+            node = node.children.get(0);
+        }
+
+        System.out.println("Leaf-level keys:");
+        while (node != null) {
+            System.out.print(node.keys + " ");
+            node = node.next;
+        }
+        System.out.println();
+    }
+}
+
+public class BPlusTreeProgram {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Enter order of B+ Tree (minimum 3): ");
+        int order = sc.nextInt();
+
+        if (order < 3) {
+            System.out.println("Order must be at least 3.");
+            return;
+        }
+
+        BPlusTree tree = new BPlusTree(order);
+        int choice;
+
+        do {
+            System.out.println("\n1. Insert\n2. Search\n3. Display leaf level\n0. Exit");
+            System.out.print("Enter choice: ");
+            choice = sc.nextInt();
+
+            if (choice == 1) {
+                System.out.print("Enter key: ");
+                tree.insert(sc.nextInt());
+            } else if (choice == 2) {
+                System.out.print("Enter key to search: ");
+                System.out.println(tree.search(sc.nextInt()) ? "Key found." : "Key not found.");
+            } else if (choice == 3) {
+                tree.display();
+            }
+        } while (choice != 0);
+
+        sc.close();
+    }
+}
+
+==============================================================================
+BinarySearch.java
+==============================================================================
+
+import java.util.Arrays;
+import java.util.Scanner;
+
+public class BinarySearch {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of elements: ");
+        int n = sc.nextInt();
+        int[] arr = new int[n];
+
+        System.out.println("Enter elements:");
+        for (int i = 0; i < n; i++) {
+            arr[i] = sc.nextInt();
+        }
+
+        Arrays.sort(arr);
+        System.out.println("Sorted array: " + Arrays.toString(arr));
+
+        System.out.print("Enter element to search: ");
+        int key = sc.nextInt();
+
+        int low = 0;
+        int high = n - 1;
+        int result = -1;
+
+        while (low <= high) {
+            int mid = low + (high - low) / 2;
+
+            if (arr[mid] == key) {
+                result = mid;
+                break;
+            } else if (arr[mid] < key) {
+                low = mid + 1;
+            } else {
+                high = mid - 1;
+            }
+        }
+
+        if (result == -1) {
+            System.out.println("Element not found.");
+        } else {
+            System.out.println("Element found at sorted index " + result + ".");
+        }
+
+        sc.close();
+    }
+}
+
+==============================================================================
+MergeSort.java
+==============================================================================
+
+import java.util.Arrays;
+import java.util.Scanner;
+
+public class MergeSort {
+    static void mergeSort(int[] arr, int left, int right) {
+        if (left < right) {
+            int mid = left + (right - left) / 2;
+            mergeSort(arr, left, mid);
+            mergeSort(arr, mid + 1, right);
+            merge(arr, left, mid, right);
+        }
+    }
+
+    static void merge(int[] arr, int left, int mid, int right) {
+        int n1 = mid - left + 1;
+        int n2 = right - mid;
+        int[] a = new int[n1];
+        int[] b = new int[n2];
+
+        for (int i = 0; i < n1; i++) {
+            a[i] = arr[left + i];
+        }
+        for (int j = 0; j < n2; j++) {
+            b[j] = arr[mid + 1 + j];
+        }
+
+        int i = 0, j = 0, k = left;
+
+        while (i < n1 && j < n2) {
+            if (a[i] <= b[j]) {
+                arr[k++] = a[i++];
+            } else {
+                arr[k++] = b[j++];
+            }
+        }
+
+        while (i < n1) {
+            arr[k++] = a[i++];
+        }
+        while (j < n2) {
+            arr[k++] = b[j++];
+        }
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of elements: ");
+        int n = sc.nextInt();
+        int[] arr = new int[n];
+
+        System.out.println("Enter elements:");
+        for (int i = 0; i < n; i++) {
+            arr[i] = sc.nextInt();
+        }
+
+        mergeSort(arr, 0, n - 1);
+        System.out.println("Sorted array: " + Arrays.toString(arr));
+
+        sc.close();
+    }
+}
+
+==============================================================================
+QuickSort.java
+==============================================================================
+
+import java.util.Arrays;
+import java.util.Scanner;
+
+public class QuickSort {
+    static void quickSort(int[] arr, int low, int high) {
+        if (low < high) {
+            int pivotIndex = partition(arr, low, high);
+            quickSort(arr, low, pivotIndex - 1);
+            quickSort(arr, pivotIndex + 1, high);
+        }
+    }
+
+    static int partition(int[] arr, int low, int high) {
+        int pivot = arr[high];
+        int i = low - 1;
+
+        for (int j = low; j < high; j++) {
+            if (arr[j] <= pivot) {
+                i++;
+                int temp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = temp;
+            }
+        }
+
+        int temp = arr[i + 1];
+        arr[i + 1] = arr[high];
+        arr[high] = temp;
+
+        return i + 1;
+    }
+
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of elements: ");
+        int n = sc.nextInt();
+        int[] arr = new int[n];
+
+        System.out.println("Enter elements:");
+        for (int i = 0; i < n; i++) {
+            arr[i] = sc.nextInt();
+        }
+
+        quickSort(arr, 0, n - 1);
+        System.out.println("Sorted array: " + Arrays.toString(arr));
+
+        sc.close();
+    }
+}
+
+==============================================================================
+FractionalKnapsack.java
+==============================================================================
+
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Scanner;
+
+class Item {
+    double weight;
+    double profit;
+    double ratio;
+
+    Item(double weight, double profit) {
+        this.weight = weight;
+        this.profit = profit;
+        this.ratio = profit / weight;
+    }
+}
+
+public class FractionalKnapsack {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of items: ");
+        int n = sc.nextInt();
+        Item[] items = new Item[n];
+
+        for (int i = 0; i < n; i++) {
+            System.out.print("Enter weight and profit of item " + (i + 1) + ": ");
+            double weight = sc.nextDouble();
+            double profit = sc.nextDouble();
+
+            if (weight <= 0 || profit < 0) {
+                System.out.println("Invalid weight or profit.");
+                return;
+            }
+            items[i] = new Item(weight, profit);
+        }
+
+        System.out.print("Enter knapsack capacity: ");
+        double capacity = sc.nextDouble();
+
+        Arrays.sort(items, Comparator.comparingDouble((Item item) -> item.ratio).reversed());
+
+        double totalProfit = 0;
+
+        for (Item item : items) {
+            if (capacity <= 0) {
+                break;
+            }
+
+            if (item.weight <= capacity) {
+                capacity -= item.weight;
+                totalProfit += item.profit;
+                System.out.printf("Take 100%% of item: weight %.2f, profit %.2f%n", item.weight, item.profit);
+            } else {
+                double fraction = capacity / item.weight;
+                totalProfit += item.profit * fraction;
+                System.out.printf("Take %.2f%% of item: weight %.2f, added profit %.2f%n",
+                        fraction * 100, item.weight, item.profit * fraction);
+                capacity = 0;
+            }
+        }
+
+        System.out.printf("Maximum profit = %.2f%n", totalProfit);
+        sc.close();
+    }
+}
+
+==============================================================================
+JobSequencing.java
+==============================================================================
+
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.Scanner;
+
+class Job {
+    String id;
+    int deadline;
+    int profit;
+
+    Job(String id, int deadline, int profit) {
+        this.id = id;
+        this.deadline = deadline;
+        this.profit = profit;
+    }
+}
+
+public class JobSequencing {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of jobs: ");
+        int n = sc.nextInt();
+        Job[] jobs = new Job[n];
+        int maxDeadline = 0;
+
+        for (int i = 0; i < n; i++) {
+            System.out.print("Enter job ID, deadline and profit: ");
+            String id = sc.next();
+            int deadline = sc.nextInt();
+            int profit = sc.nextInt();
+
+            if (deadline < 1 || profit < 0) {
+                System.out.println("Invalid deadline or profit.");
+                return;
+            }
+
+            jobs[i] = new Job(id, deadline, profit);
+            maxDeadline = Math.max(maxDeadline, deadline);
+        }
+
+        Arrays.sort(jobs, Comparator.comparingInt((Job job) -> job.profit).reversed());
+
+        String[] slots = new String[maxDeadline];
+        int totalProfit = 0;
+        int count = 0;
+
+        for (Job job : jobs) {
+            for (int j = Math.min(job.deadline, maxDeadline) - 1; j >= 0; j--) {
+                if (slots[j] == null) {
+                    slots[j] = job.id;
+                    totalProfit += job.profit;
+                    count++;
+                    break;
+                }
+            }
+        }
+
+        System.out.println("Scheduled jobs:");
+        for (int i = 0; i < slots.length; i++) {
+            if (slots[i] != null) {
+                System.out.println("Slot " + (i + 1) + ": " + slots[i]);
+            }
+        }
+
+        System.out.println("Number of jobs selected = " + count);
+        System.out.println("Maximum profit = " + totalProfit);
+        sc.close();
+    }
+}
+
+==============================================================================
+ZeroOneKnapsack.java
+==============================================================================
+
+import java.util.Scanner;
+
+public class ZeroOneKnapsack {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of items: ");
+        int n = sc.nextInt();
+
+        int[] weight = new int[n];
+        int[] profit = new int[n];
+
+        for (int i = 0; i < n; i++) {
+            System.out.print("Enter weight and profit of item " + (i + 1) + ": ");
+            weight[i] = sc.nextInt();
+            profit[i] = sc.nextInt();
+
+            if (weight[i] <= 0 || profit[i] < 0) {
+                System.out.println("Invalid weight or profit.");
+                return;
+            }
+        }
+
+        System.out.print("Enter knapsack capacity: ");
+        int capacity = sc.nextInt();
+
+        int[][] dp = new int[n + 1][capacity + 1];
+
+        for (int i = 1; i <= n; i++) {
+            for (int w = 0; w <= capacity; w++) {
+                if (weight[i - 1] <= w) {
+                    dp[i][w] = Math.max(
+                            profit[i - 1] + dp[i - 1][w - weight[i - 1]],
+                            dp[i - 1][w]
+                    );
+                } else {
+                    dp[i][w] = dp[i - 1][w];
+                }
+            }
+        }
+
+        System.out.println("Maximum profit = " + dp[n][capacity]);
+
+        int w = capacity;
+        System.out.println("Selected items:");
+        for (int i = n; i > 0; i--) {
+            if (dp[i][w] != dp[i - 1][w]) {
+                System.out.println("Item " + i + " (weight " + weight[i - 1]
+                        + ", profit " + profit[i - 1] + ")");
+                w -= weight[i - 1];
+            }
+        }
+
+        sc.close();
+    }
+}
+
+==============================================================================
+LCS.java
+==============================================================================
+
+import java.util.Scanner;
+
+public class LCS {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter first string: ");
+        String first = sc.nextLine();
+
+        System.out.print("Enter second string: ");
+        String second = sc.nextLine();
+
+        int m = first.length();
+        int n = second.length();
+        int[][] dp = new int[m + 1][n + 1];
+
+        for (int i = 1; i <= m; i++) {
+            for (int j = 1; j <= n; j++) {
+                if (first.charAt(i - 1) == second.charAt(j - 1)) {
+                    dp[i][j] = 1 + dp[i - 1][j - 1];
+                } else {
+                    dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+                }
+            }
+        }
+
+        int length = dp[m][n];
+        char[] lcs = new char[length];
+        int i = m;
+        int j = n;
+        int index = length - 1;
+
+        while (i > 0 && j > 0) {
+            if (first.charAt(i - 1) == second.charAt(j - 1)) {
+                lcs[index--] = first.charAt(i - 1);
+                i--;
+                j--;
+            } else if (dp[i - 1][j] > dp[i][j - 1]) {
+                i--;
+            } else {
+                j--;
+            }
+        }
+
+        System.out.println("Length of LCS = " + length);
+        System.out.println("Longest Common Subsequence = " + new String(lcs));
+        sc.close();
+    }
+}

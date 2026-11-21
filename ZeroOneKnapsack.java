@@ -1,0 +1,56 @@
+import java.util.Scanner;
+
+public class ZeroOneKnapsack {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        System.out.print("Enter number of items: ");
+        int n = sc.nextInt();
+
+        int[] weight = new int[n];
+        int[] profit = new int[n];
+
+        for (int i = 0; i < n; i++) {
+            System.out.print("Enter weight and profit of item " + (i + 1) + ": ");
+            weight[i] = sc.nextInt();
+            profit[i] = sc.nextInt();
+
+            if (weight[i] <= 0 || profit[i] < 0) {
+                System.out.println("Invalid weight or profit.");
+                return;
+            }
+        }
+
+        System.out.print("Enter knapsack capacity: ");
+        int capacity = sc.nextInt();
+
+        int[][] dp = new int[n + 1][capacity + 1];
+
+        for (int i = 1; i <= n; i++) {
+            for (int w = 0; w <= capacity; w++) {
+                if (weight[i - 1] <= w) {
+                    dp[i][w] = Math.max(
+                            profit[i - 1] + dp[i - 1][w - weight[i - 1]],
+                            dp[i - 1][w]
+                    );
+                } else {
+                    dp[i][w] = dp[i - 1][w];
+                }
+            }
+        }
+
+        System.out.println("Maximum profit = " + dp[n][capacity]);
+
+        int w = capacity;
+        System.out.println("Selected items:");
+        for (int i = n; i > 0; i--) {
+            if (dp[i][w] != dp[i - 1][w]) {
+                System.out.println("Item " + i + " (weight " + weight[i - 1]
+                        + ", profit " + profit[i - 1] + ")");
+                w -= weight[i - 1];
+            }
+        }
+
+        sc.close();
+    }
+}
